@@ -80,10 +80,9 @@ Authorization: Bearer <access_token>
 
 ---
 
-# Hur man kör applikationen lokalt
+# Kör applikationen lokalt
 
 ### 1. Klona projektet
-```bash
 git clone <repo-url>
 cd booking-application
 
@@ -96,6 +95,6 @@ NEXT_PUBLIC_SUPABASE_URL=<YOUR_SUPABASE_URL>
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<YOUR_SUPABASE_ANON_KEY>
 SUPABASE_SERVICE_ROLE_KEY=<YOUR_SUPABASE_SERVICE_ROLE_KEY>
 
-4. Starta utvecklingsservern
+### 4. Starta utvecklingsservern
 npm run dev
 
