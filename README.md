@@ -4,7 +4,8 @@ Detta projekt är byggt med **Next.js**, **Hono API** och **Supabase** som backe
 Applikationen är skriven i **TypeScript** helt utan användning av `any` vilket ger robust typning och bättre utvecklarupplevelse.
 
 Projektet är utformat för att efterlikna en **bnb-hanteringsapplikation**, där användare kan:
-- **Registrera sig och logga in**
+- **Registrera sig och**
+- **Logga in**  
 - **Skapa, redigera och ta bort sina egna annonser (CRUD)**
 - **Se andra användares boenden**
 - **Boka tillgängliga boenden**
