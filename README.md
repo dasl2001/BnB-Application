@@ -90,9 +90,9 @@ cd booking-application
 npm install
 
 ### 3. Skapa miljöfil .env.local
-Lägg till dina Supabase-nycklar:
-NEXT_PUBLIC_SUPABASE_URL=<YOUR_SUPABASE_URL>'
-NEXT_PUBLIC_SUPABASE_ANON_KEY=<YOUR_SUPABASE_ANON_KEY'
+Lägg till dina Supabase-nycklar:  
+NEXT_PUBLIC_SUPABASE_URL=<YOUR_SUPABASE_URL>  
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<YOUR_SUPABASE_ANON_KEY  
 SUPABASE_SERVICE_ROLE_KEY=<YOUR_SUPABASE_SERVICE_ROLE_KEY>
 
 ### 4. Starta utvecklingsservern
