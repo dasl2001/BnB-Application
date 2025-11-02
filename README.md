@@ -4,17 +4,18 @@ Detta projekt är ett **Next.js och Hono API** som hanterar **registrering**, **
 
 ---
 
-## 🔐 AUTH
+## AUTH
 
 **POST** `/api/auth/register`  
 Registrera ny användare  
 
 **POST** `/api/auth/login`  
-Logga in och hämta access token  
+Lägg aven till följande i Headers Content-Type (key) application/json	(value) och apikey (key)	<YOUR_SUPABASE_ANON_KEY> (value) innan du loggar in
+Logga in sedan in och hämta access token 
 
 ---
 
-## 🏠 PROPERTY
+## PROPERTIES
 
 **GET** `/api/properties`  
 Hämta alla properties  
@@ -42,7 +43,7 @@ Kontrollera om en property är bokad
 
 ---
 
-## 📅 BOOKING ROUTES
+## BOOKINGS 
 
 **GET** `/api/bookings`  
 Hämta användarens bokningar  
@@ -61,8 +62,8 @@ Ta bort en bokning
 
 ---
 
-## 🔑 Authorization
+## Authorization
 
 Alla skyddade rutter kräver en giltig JWT-token i headern:
-
+Authorization: Bearer <access_token>
 
