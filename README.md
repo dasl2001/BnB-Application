@@ -10,8 +10,18 @@ Detta projekt är ett **Next.js och Hono API** som hanterar **registrering**, **
 Registrera ny användare  
 
 **POST** `/api/auth/login`  
-Lägg aven till följande i Headers Content-Type (key) application/json	(value) och apikey (key)	<YOUR_SUPABASE_ANON_KEY> (value) innan du loggar in
-Logga in sedan in och hämta access token 
+Logga in och hämta access token 
+
+---
+
+### Viktigt innan du loggar in
+
+Lägg till följande i **Headers** i Postman eller i din HTTP-klient:
+
+| Key | Value |
+|-----|--------|
+| **Content-Type** | `application/json` |
+| **apikey** | `<YOUR_SUPABASE_ANON_KEY>` |
 
 ---
 
