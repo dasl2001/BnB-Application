@@ -2,6 +2,7 @@
 
 Detta projekt är ett **Next.js och Hono API** som hanterar **registrering**, **autentisering**, **annonser (properties)** och **bokningar (bookings)** med **Supabase** som backend.
 
+
 ---
 
 ## AUTH
@@ -76,4 +77,25 @@ Ta bort en bokning
 
 Alla skyddade rutter kräver en giltig JWT-token i headern:
 Authorization: Bearer <access_token>
+
+---
+
+# Hur man kör applikationen lokalt
+
+### 1. Klona projektet
+```bash
+git clone <repo-url>
+cd booking-application
+
+### 2. Installera beroenden
+npm install
+
+### 3. Skapa miljöfil .env.local
+Lägg till dina Supabase-nycklar:
+NEXT_PUBLIC_SUPABASE_URL=<YOUR_SUPABASE_URL>
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<YOUR_SUPABASE_ANON_KEY>
+SUPABASE_SERVICE_ROLE_KEY=<YOUR_SUPABASE_SERVICE_ROLE_KEY>
+
+4. Starta utvecklingsservern
+npm run dev
 
