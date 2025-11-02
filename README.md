@@ -1,6 +1,6 @@
 # Booking-Application
 
-Detta projekt är ett **Next.js och Hono API** som hanterar **registrering**, **autentisering**, **annonser (properties)** och **bokningar (bookings)** med **Supabase** som backend.
+Detta projekt är ett **Next.js och Hono API** som hanterar **registrering**, **autentisering**, **annonser** och **bokningar** med **Supabase** som backend.
 
 
 ---
@@ -91,8 +91,8 @@ npm install
 
 ### 3. Skapa miljöfil .env.local
 Lägg till dina Supabase-nycklar:
-NEXT_PUBLIC_SUPABASE_URL=<YOUR_SUPABASE_URL>
-NEXT_PUBLIC_SUPABASE_ANON_KEY=<YOUR_SUPABASE_ANON_KEY>
+NEXT_PUBLIC_SUPABASE_URL=<YOUR_SUPABASE_URL>'
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<YOUR_SUPABASE_ANON_KEY'
 SUPABASE_SERVICE_ROLE_KEY=<YOUR_SUPABASE_SERVICE_ROLE_KEY>
 
 ### 4. Starta utvecklingsservern
