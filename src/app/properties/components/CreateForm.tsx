@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 type Props = {
   busy?: boolean;
   onCreate: (payload: {
@@ -13,52 +15,125 @@ type Props = {
 };
 
 export default function CreateForm({ busy, onCreate }: Props) {
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [msg, setMsg] = useState("");
+
+  async function uploadImage(f: File): Promise<string | null> {
+    const fd = new FormData();
+    fd.append("file", f);
+
+    const res = await fetch("/api/properties/upload-image", {
+      method: "POST",
+      body: fd,
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.error || "Kunde inte ladda upp bilden");
+    return data.url as string;
+  }
+
   return (
     <form
       id="new-property-form"
       onSubmit={async (e) => {
         e.preventDefault();
+        setMsg("");
+
         const fd = new FormData(e.currentTarget);
-        await onCreate({
-          name: String(fd.get("name") ?? ""),
-          description: String(fd.get("description") ?? "").trim() || null,
-          location: String(fd.get("location") ?? "").trim() || null,
-          price_per_night: fd.get("price_per_night")
-            ? Number(fd.get("price_per_night"))
-            : null,
-          availability: true,
-          image_url: String(fd.get("image_url") ?? "").trim() || null,
-        });
-        (document.getElementById("new-property-form") as HTMLFormElement | null)?.reset();
+        const name = String(fd.get("name") ?? "").trim();
+        const description = String(fd.get("description") ?? "").trim() || null;
+        const location = String(fd.get("location") ?? "").trim() || null;
+        const price = fd.get("price_per_night")
+          ? Number(fd.get("price_per_night"))
+          : null;
+
+        try {
+          let image_url: string | null = null;
+          if (file) image_url = await uploadImage(file);
+
+          await onCreate({
+            name,
+            description,
+            location,
+            price_per_night: price,
+            availability: true,
+            image_url,
+          });
+
+          setFile(null);
+          setPreview(null);
+          setMsg("✅ Boendet skapades!");
+          (document.getElementById("new-property-form") as HTMLFormElement)?.reset();
+        } catch (err: unknown) {
+          const e = err as Error;
+          setMsg(`❌ ${e.message}`);
+        }
       }}
       className="grid gap-3 sm:grid-cols-2"
     >
       <label className="flex flex-col gap-1">
         <span className="text-sm text-gray-700">Namn *</span>
-        <input name="name" required className="rounded-md border px-3 py-2" />
+        <input
+          name="name"
+          required
+          className="rounded-md border px-3 py-2"
+          placeholder="Mysig stuga"
+        />
       </label>
 
       <label className="flex flex-col gap-1">
         <span className="text-sm text-gray-700">Pris per natt (SEK)</span>
-        <input name="price_per_night" inputMode="numeric" className="rounded-md border px-3 py-2" />
+        <input
+          name="price_per_night"
+          inputMode="numeric"
+          placeholder="1200"
+          className="rounded-md border px-3 py-2"
+        />
       </label>
 
       <label className="flex flex-col gap-1 sm:col-span-2">
         <span className="text-sm text-gray-700">Plats</span>
-        <input name="location" className="rounded-md border px-3 py-2" />
+        <input
+          name="location"
+          placeholder="Åre, Sverige"
+          className="rounded-md border px-3 py-2"
+        />
       </label>
 
       <label className="flex flex-col gap-1 sm:col-span-2">
         <span className="text-sm text-gray-700">Beskrivning</span>
-        <textarea name="description" className="rounded-md border px-3 py-2 min-h-24" />
+        <textarea
+          name="description"
+          placeholder="Kort beskrivning av boendet…"
+          className="rounded-md border px-3 py-2 min-h-24"
+        />
       </label>
 
+      {/* 🔹 Ny: bilduppladdning */}
       <label className="flex flex-col gap-1 sm:col-span-2">
-        <span className="text-sm text-gray-700">Bild-URL</span>
-        <input name="image_url" className="rounded-md border px-3 py-2" />
+        <span className="text-sm text-gray-700">Bild</span>
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) => {
+            const f = e.target.files?.[0] || null;
+            setFile(f);
+            setPreview(f ? URL.createObjectURL(f) : null);
+          }}
+          className="rounded-md border px-3 py-2"
+        />
+        {preview && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={preview}
+            alt="Förhandsvisning"
+            className="mt-2 h-40 w-full object-cover rounded-md"
+          />
+        )}
       </label>
 
-      <div className="sm:col-span-2">
+      <div className="sm:col-span-2 flex flex-col gap-2">
         <button
           type="submit"
           disabled={busy}
@@ -66,6 +141,16 @@ export default function CreateForm({ busy, onCreate }: Props) {
         >
           {busy ? "Skapar…" : "Skapa listning"}
         </button>
+
+        {msg && (
+          <p
+            className={`text-sm ${
+              msg.startsWith("✅") ? "text-emerald-600" : "text-rose-600"
+            }`}
+          >
+            {msg}
+          </p>
+        )}
       </div>
     </form>
   );

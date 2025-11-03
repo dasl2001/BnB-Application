@@ -8,7 +8,7 @@ import { z } from "zod";
 
 export const properties = new Hono<{ Variables: Vars }>();
 
-// Lista alla (publikt eller enligt RLS)
+// Lista alla (publikt)
 properties.get("/", async (c) => {
   const db = c.get("supa");
   const { data, error } = await db
@@ -74,7 +74,7 @@ properties.post("/", zValidator("json", propertyCreate), async (c) => {
 
   const owner_id = await currentUserId(db, auth.id);
   const body = c.req.valid("json");
-
+  console.log(owner_id, body);
   const { data, error } = await db
     .from("properties")
     .insert({ ...body, owner_id })
@@ -97,7 +97,6 @@ properties.patch("/:id", zValidator("json", propertyPatch), async (c) => {
   const { id } = c.req.param();
   const me = await currentUserId(db, auth.id);
 
-  // kontrollera att jag äger property
   const { data: ownerRow, error: getErr } = await db
     .from("properties")
     .select("owner_id")
@@ -146,7 +145,7 @@ properties.delete("/:id", async (c) => {
   return c.json({ ok: true });
 });
 
-// 🔹 Ny: Hämta en specifik property
+// Hämta en specifik property
 properties.get("/:id", async (c) => {
   const db = c.get("supa");
   const { id } = c.req.param();
@@ -158,18 +157,15 @@ properties.get("/:id", async (c) => {
     .single();
 
   if (error || !data) return c.json({ error: "Property not found" }, 404);
-
   return c.json({ property: data });
 });
 
-// Query-schema för /:id/is-booked
+// Är boendet bokat?
 const isBookedQuery = z.object({
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 });
 
-// Är boendet bokat? (valfria query: from=YYYY-MM-DD, to=YYYY-MM-DD)
-// Använder service role för korrekt count trots RLS.
 properties.get("/:id/is-booked", zValidator("query", isBookedQuery), async (c) => {
   const admin = supaAdmin();
   const { id } = c.req.param();
@@ -181,7 +177,6 @@ properties.get("/:id/is-booked", zValidator("query", isBookedQuery), async (c) =
     .eq("property_id", id);
 
   if (from && to) {
-    // overlap: inte (out <= from) och inte (in >= to)
     q = q.not("check_out_date", "lte", from).not("check_in_date", "gte", to);
   }
 
@@ -193,4 +188,37 @@ properties.get("/:id/is-booked", zValidator("query", isBookedQuery), async (c) =
     count: count ?? 0,
     scope: from && to ? { from, to } : "any",
   });
+});
+
+// 🖼️ Bilduppladdning till Supabase Storage
+properties.post("/upload-image", async (c) => {
+  const unauth = requireAuth(c);
+  if (unauth) return unauth;
+
+  const db = c.get("supa");
+  const auth = c.get("authUser");
+  if (!auth) return c.json({ error: "Unauthorized" }, 401);
+
+  const formData = await c.req.formData();
+  const file = formData.get("file") as File | null;
+
+  if (!file) return c.json({ error: "Ingen fil vald" }, 400);
+  if (!file.type.startsWith("image/"))
+    return c.json({ error: "Endast bildfiler tillåts" }, 400);
+
+  const ext = file.name.split(".").pop();
+  const filename = `${auth.id}/${crypto.randomUUID()}.${ext}`;
+  const bucket = "property-images";
+  console.log("Uploading to bucket:", bucket, "filename:", filename);
+  const { data, error } = await db.storage
+    .from(bucket)
+    .upload(filename, file, {
+      cacheControl: "3600",
+      upsert: false,
+    });
+
+  if (error) return c.json({ error: error.message }, 400);
+
+  const { data: publicUrl } = db.storage.from(bucket).getPublicUrl(filename);
+  return c.json({ url: publicUrl.publicUrl });
 });
