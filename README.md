@@ -19,7 +19,7 @@ Projektet är utformat för att efterlikna en **bnb-hanteringsapplikation**, dä
 Registrera ny användare  
 
 **POST** `/api/auth/login`  
-Logga in och hämta access token 
+Logga in 
 
 ---
 
