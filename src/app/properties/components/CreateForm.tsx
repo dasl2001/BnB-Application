@@ -1,15 +1,18 @@
 "use client";
-
-import { useState } from "react";
-
-/* 
-  Props:
-   - busy: visar om en nätverksförfrågan pågår (t.ex. API-anrop)
-   - onCreate: funktion som kallas när användaren skickar formuläret.
-     → Den skickas från `useProperties()` och anropar POST /api/properties
+import { useEffect, useState } from "react";
+/*
+Denna komponent används för att skapa nya boenden ("properties").
+Den hanterar:
+- Formulär för inmatning av data
+- Bilduppladdning via API
+- Förhandsvisning av vald bild
+- Dynamiska statusmeddelanden (med fade-effekt)
 */
+
 type Props = {
+  /* Busy flagga för att blockera knappen under pågående skapande */
   busy?: boolean;
+  /* Callback-funktion som körs när formuläret skickas (backend-anrop) */
   onCreate: (payload: {
     name: string;
     description: string | null;
@@ -20,36 +23,18 @@ type Props = {
   }) => Promise<void>;
 };
 
-
-/* 
-  Formulär för att skapa ett nytt boende (Property).
-  Innehåller fält för:
-    - namn, plats, beskrivning, pris
-    - samt bilduppladdning till Supabase Storage.
-
-  När användaren klickar på “Skapa listning”:
-   ev. bild laddas upp till `/api/properties/upload-image`
-   backend returnerar en public URL till bilden
-   den skickas med i payload till `/api/properties`
-*/
 export default function CreateForm({ busy, onCreate }: Props) {
-   /* Lokala state-variabler */
-  const [file, setFile] = useState<File | null>(null);  /* vald bildfil */
-  const [preview, setPreview] = useState<string | null>(null); /* förhandsvisning */
-  const [msg, setMsg] = useState(""); /* status-/felmeddelande */
+   /* Lokal state för vald fil, bildförhandsvisning och meddelanden */
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string>("");
+  const [fade, setFade] = useState(false); // styr fade-ut-animation
 
-    /* 
-    uploadImage(): laddar upp en bild till backendens endpoint.
-    Backend hanterar bilduppladdning till Supabase Storage-bucket "property-images".
-  */
+  /* Ladda upp bild till API: /api/properties/upload-image                   */
   async function uploadImage(f: File): Promise<string | null> {
     const fd = new FormData();
     fd.append("file", f);
 
-    /* 
-      Skickar POST till vårt Hono-API → /api/properties/upload-image
-      Backend sparar bilden i Supabase Storage och returnerar en publik URL.
-    */
     const res = await fetch("/api/properties/upload-image", {
       method: "POST",
       body: fd,
@@ -57,17 +42,28 @@ export default function CreateForm({ busy, onCreate }: Props) {
 
     const data = await res.json();
     if (!res.ok) throw new Error(data?.error || "Kunde inte ladda upp bilden");
-    return data.url as string; /* returnerar bildens URL till frontend */
+    return data.url as string;
   }
+
+  // Fade-bort-meddelanden efter 4 sekunder
+  useEffect(() => {
+    if (!msg) return;
+    setFade(false); // startar som synligt
+    const t1 = setTimeout(() => setFade(true), 2500); // // börja faden efter 2,5 sek
+    const t2 = setTimeout(() => setMsg(""), 4000); // ta bort helt efter 4 sek
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [msg]);
 
   return (
     <form
       id="new-property-form"
       onSubmit={async (e) => {
-        e.preventDefault(); /* förhindra standardformulärbeteende */
+        e.preventDefault();
         setMsg("");
-
-         /* Läs alla fält från formuläret */
+           /* Läs in data från formuläret */
         const fd = new FormData(e.currentTarget);
         const name = String(fd.get("name") ?? "").trim();
         const description = String(fd.get("description") ?? "").trim() || null;
@@ -77,35 +73,26 @@ export default function CreateForm({ busy, onCreate }: Props) {
           : null;
 
         try {
+           /* Ladda upp vald bild till servern (om en finns) */
           let image_url: string | null = null;
-
-          /* 
-            Om användaren valt en bild → ladda upp den via uploadImage()
-            Få tillbaka en publik URL att spara i databasen
-          */
           if (file) image_url = await uploadImage(file);
-
-          /* 
-            Anropa onCreate() → POST /api/properties
-            Detta anrop hanteras i useProperties() som i sin tur
-            skickar datan vidare till backendens Hono-route.
-          */
+          /* Skicka datan till parent-funktionen som hanterar API-anropet */
           await onCreate({
             name,
             description,
             location,
             price_per_night: price,
-            availability: true, /* nya boenden är alltid tillgängliga från start */
+            availability: true,
             image_url,
           });
-
-          /* Nollställ formuläret och visa bekräftelse */
+          /* Rensa formuläret vid lyckad skapelse */
           setFile(null);
           setPreview(null);
-          setMsg("Boendet skapades!");
+          setMsg("✅ Boendet skapades!");
           (document.getElementById("new-property-form") as HTMLFormElement)?.reset();
         } catch (err: unknown) {
           const e = err as Error;
+          // Visa endast ett felmeddelande åt gången
           setMsg(`❌ ${e.message}`);
         }
       }}
@@ -149,7 +136,7 @@ export default function CreateForm({ busy, onCreate }: Props) {
         />
       </label>
 
-      {/* 🔹 Ny: bilduppladdning */}
+      {/* Bilduppladdning */}
       <label className="flex flex-col gap-1 sm:col-span-2">
         <span className="text-sm text-gray-700">Bild</span>
         <input
@@ -162,7 +149,7 @@ export default function CreateForm({ busy, onCreate }: Props) {
           }}
           className="rounded-md border px-3 py-2"
         />
-        {/* Visa förhandsvisning om användaren valt en bild */}
+         {/* Bildförhandsvisning (om användaren har valt en bild) */}
         {preview && (
           <img
             src={preview}
@@ -172,6 +159,7 @@ export default function CreateForm({ busy, onCreate }: Props) {
         )}
       </label>
 
+      {/* Skapa-knapp + meddelande */}
       <div className="sm:col-span-2 flex flex-col gap-2">
         <button
           type="submit"
@@ -180,12 +168,14 @@ export default function CreateForm({ busy, onCreate }: Props) {
         >
           {busy ? "Skapar…" : "Skapa listning"}
         </button>
-
+ {/* Dynamiskt meddelande (lyckat/fel) med fade-effekt */}
         {msg && (
           <p
-            className={`text-sm ${
-              msg.startsWith("✅") ? "text-emerald-600" : "text-rose-600"
-            }`}
+            className={`text-sm transition-opacity duration-1000 ${
+              msg.startsWith("✅")
+                ? "text-emerald-600"
+                : "text-rose-600"
+            } ${fade ? "opacity-0" : "opacity-100"}`}
           >
             {msg}
           </p>
@@ -194,3 +184,7 @@ export default function CreateForm({ busy, onCreate }: Props) {
     </form>
   );
 }
+
+
+
+

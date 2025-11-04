@@ -4,9 +4,11 @@ Skapa, läsa, uppdatera och ta bort
 Visa sina egna eller andras
 Kontrollera bokningsstatus
 Ladda upp bilder till Supabase Storage
-RLS (Row Level Security) används i databasen för att skydda data:
+
+RLS (Row Level Security) används i databasen:
 Endast ägaren kan ändra eller ta bort sina egna properties.
 */
+
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { propertyCreate, propertyPatch } from "@/lib/schemas";
@@ -14,11 +16,12 @@ import { requireAuth, currentUserId } from "../utils";
 import { supaAdmin } from "@/lib/supabase";
 import type { Vars } from "../types";
 import { z } from "zod";
+
 export const properties = new Hono<{ Variables: Vars }>();
 
-/*
-Läs alla properties (publikt)
-*/
+/* -------------------------------------------------------------------------- */
+/* Läs alla properties (publikt) */
+/* -------------------------------------------------------------------------- */
 properties.get("/", async (c) => {
   const db = c.get("supa");
   const { data, error } = await db
@@ -30,9 +33,9 @@ properties.get("/", async (c) => {
   return c.json({ properties: data });
 });
 
-/*
-Hämta mina egna properties
-*/
+/* -------------------------------------------------------------------------- */
+/* Hämta mina egna properties */
+/* -------------------------------------------------------------------------- */
 properties.get("/my", async (c) => {
   const unauth = requireAuth(c);
   if (unauth) return unauth;
@@ -40,9 +43,6 @@ properties.get("/my", async (c) => {
   const auth = c.get("authUser");
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
 
-/*
-Matcha Supabase UID med appens users-tabell
-*/
   const owner_id = await currentUserId(db, auth.id);
 
   const { data, error } = await db
@@ -55,13 +55,12 @@ Matcha Supabase UID med appens users-tabell
   return c.json({ properties: data });
 });
 
-/*
-Hämta andras (bokningsbara) properties
-*/
+/* -------------------------------------------------------------------------- */
+/* Hämta andras (bokningsbara) properties */
+/* -------------------------------------------------------------------------- */
 properties.get("/others", async (c) => {
   const unauth = requireAuth(c);
   if (unauth) return unauth;
-
   const db = c.get("supa");
   const auth = c.get("authUser");
   if (!auth) return c.json({ error: "Unauthorized" }, 401);
@@ -79,9 +78,9 @@ properties.get("/others", async (c) => {
   return c.json({ properties: data });
 });
 
-/*
-Skapa nytt property
-*/
+/* -------------------------------------------------------------------------- */
+/* Skapa nytt property (förhindrar dubbletter & rensar uppladdad bild vid fel) */
+/* -------------------------------------------------------------------------- */
 properties.post("/", zValidator("json", propertyCreate), async (c) => {
   const unauth = requireAuth(c);
   if (unauth) return unauth;
@@ -92,20 +91,70 @@ properties.post("/", zValidator("json", propertyCreate), async (c) => {
 
   const owner_id = await currentUserId(db, auth.id);
   const body = c.req.valid("json");
-  console.log(owner_id, body);
+
+  const normalizedName = body.name.trim().toLowerCase();
+  const normalizedImage = body.image_url?.trim().toLowerCase() ?? "";
+
+  const { data: existing, error: checkErr } = await db
+    .from("properties")
+    .select("id, name, image_url")
+    .eq("owner_id", owner_id);
+
+  if (checkErr) return c.json({ error: checkErr.message }, 400);
+
+  const hasDuplicate = existing?.some((p) => {
+    const sameName = p.name.trim().toLowerCase() === normalizedName;
+    const sameImage =
+      (p.image_url ?? "").trim().toLowerCase() === normalizedImage;
+    return sameName || (normalizedImage && sameImage);
+  });
+
+  // Om dubblett → ta bort uppladdad bild
+  if (hasDuplicate) {
+    if (normalizedImage) {
+      try {
+        const bucket = "property-images";
+        const path = normalizedImage.split("/property-images/")[1];
+        if (path) await db.storage.from(bucket).remove([path]);
+      } catch (e) {
+        console.warn("⚠️ Kunde inte ta bort bild vid dubblett:", e);
+      }
+    }
+    return c.json(
+      { error: "Du har redan en listning med samma namn eller bild." },
+      400
+    );
+  }
+
+  // Skapa nytt boende
   const { data, error } = await db
     .from("properties")
     .insert({ ...body, owner_id })
     .select("*")
     .single();
 
-  if (error) return c.json({ error: error.message }, 400);
+  if (error) {
+    if (normalizedImage) {
+      try {
+        const bucket = "property-images";
+        const path = normalizedImage.split("/property-images/")[1];
+        if (path) await db.storage.from(bucket).remove([path]);
+      } catch (e) {
+        console.warn("Kunde inte ta bort bild vid unique-fel:", e);
+      }
+    }
+    return c.json(
+      { error: "Du har redan en listning med samma namn eller bild." },
+      400
+    );
+  }
+
   return c.json({ property: data }, 201);
 });
 
-/*
-Uppdatera property (med ägarkontroll)
-*/
+/* -------------------------------------------------------------------------- */
+/* Uppdatera property (med ägarkontroll) */
+/* -------------------------------------------------------------------------- */
 properties.patch("/:id", zValidator("json", propertyPatch), async (c) => {
   const unauth = requireAuth(c);
   if (unauth) return unauth;
@@ -117,16 +166,13 @@ properties.patch("/:id", zValidator("json", propertyPatch), async (c) => {
   const { id } = c.req.param();
   const me = await currentUserId(db, auth.id);
 
-/*
-Kontrollera att användaren äger property
-*/
-  const { data: ownerRow, error: getErr } = await db
+  const { data: ownerRow } = await db
     .from("properties")
     .select("owner_id")
     .eq("id", id)
     .single();
 
-  if (getErr || !ownerRow) return c.json({ error: "Property not found" }, 404);
+  if (!ownerRow) return c.json({ error: "Property not found" }, 404);
   if (ownerRow.owner_id !== me) return c.json({ error: "Forbidden" }, 403);
 
   const patch = c.req.valid("json");
@@ -142,9 +188,9 @@ Kontrollera att användaren äger property
   return c.json({ property: data });
 });
 
-/*
-Ta bort property (med ägarkontroll)
-*/
+/* -------------------------------------------------------------------------- */
+/* Ta bort property (med ägarkontroll) */
+/* -------------------------------------------------------------------------- */
 properties.delete("/:id", async (c) => {
   const unauth = requireAuth(c);
   if (unauth) return unauth;
@@ -156,13 +202,13 @@ properties.delete("/:id", async (c) => {
   const { id } = c.req.param();
   const me = await currentUserId(db, auth.id);
 
-  const { data: ownerRow, error: getErr } = await db
+  const { data: ownerRow } = await db
     .from("properties")
     .select("owner_id")
     .eq("id", id)
     .single();
 
-  if (getErr || !ownerRow) return c.json({ error: "Property not found" }, 404);
+  if (!ownerRow) return c.json({ error: "Property not found" }, 404);
   if (ownerRow.owner_id !== me) return c.json({ error: "Forbidden" }, 403);
 
   const { error } = await db.from("properties").delete().eq("id", id);
@@ -170,9 +216,9 @@ properties.delete("/:id", async (c) => {
   return c.json({ ok: true });
 });
 
-/*
-Hämta en specifik property 
-*/
+/* -------------------------------------------------------------------------- */
+/* Hämta en specifik property */
+/* -------------------------------------------------------------------------- */
 properties.get("/:id", async (c) => {
   const db = c.get("supa");
   const { id } = c.req.param();
@@ -187,9 +233,9 @@ properties.get("/:id", async (c) => {
   return c.json({ property: data });
 });
 
-/*
-Kontrollera om boendet är bokat
-*/
+/* -------------------------------------------------------------------------- */
+/* Kontrollera om boendet är bokat eller har ogiltigt datum */
+/* -------------------------------------------------------------------------- */
 const isBookedQuery = z.object({
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
@@ -200,18 +246,23 @@ properties.get("/:id/is-booked", zValidator("query", isBookedQuery), async (c) =
   const { id } = c.req.param();
   const { from, to } = c.req.valid("query");
 
+  // Förhindra bokning i dåtid
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (from && new Date(from) < today) {
+    return c.json(
+      { error: "Du kan inte boka datum som redan har passerat." },
+      400
+    );
+  }
+
   let q = admin
     .from("bookings")
     .select("id", { count: "exact", head: true })
     .eq("property_id", id);
 
-  if (from && to) {
- 
-/*
-Logik: Bokat om överlapp mellan datumintervall
-*/
+  if (from && to)
     q = q.not("check_out_date", "lte", from).not("check_in_date", "gte", to);
-  }
 
   const { count, error } = await q;
   if (error) return c.json({ error: error.message }, 400);
@@ -223,9 +274,9 @@ Logik: Bokat om överlapp mellan datumintervall
   });
 });
 
-/*
-Bilduppladdning till Supabase Storage
-*/
+/* -------------------------------------------------------------------------- */
+/* Bilduppladdning till Supabase Storage (förhindrar dubbletter, case-insensitivt) */
+/* -------------------------------------------------------------------------- */
 properties.post("/upload-image", async (c) => {
   const unauth = requireAuth(c);
   if (unauth) return unauth;
@@ -240,29 +291,31 @@ properties.post("/upload-image", async (c) => {
   if (!file) return c.json({ error: "Ingen fil vald" }, 400);
   if (!file.type.startsWith("image/"))
     return c.json({ error: "Endast bildfiler tillåts" }, 400);
-/*  
-Skapa unikt filnamn i användarens mapp
-*/
-  const ext = file.name.split(".").pop();
-  const filename = `${auth.id}/${crypto.randomUUID()}.${ext}`;
+
+  const safeName = file.name.replace(/[^\w.\-]/g, "_").toLowerCase();
+  const filename = `${auth.id}/${safeName}`;
   const bucket = "property-images";
-  console.log("Uploading to bucket:", bucket, "filename:", filename);
 
-/*
-Ladda upp filen till Supabase Storage
-*/
-  const { data, error } = await db.storage
+  // Kontrollera om fil redan finns (case-insensitivt)
+  const { data: existing, error: listErr } = await db.storage
     .from(bucket)
-    .upload(filename, file, {
-      cacheControl: "3600",
-      upsert: false,
-    });
+    .list(auth.id);
 
-  if (error) return c.json({ error: error.message }, 400);
+  if (listErr) return c.json({ error: listErr.message }, 400);
+  if (existing && existing.some((f) => f.name.toLowerCase() === safeName))
+    return c.json({ error: "Du har redan laddat upp denna bild." }, 400);
 
-/*
-Hämta publik URL för bilden
-*/
+  const { error } = await db.storage.from(bucket).upload(filename, file, {
+    cacheControl: "3600",
+    upsert: false,
+  });
+
+  if (error) {
+    if (error.message.includes("exists"))
+      return c.json({ error: "Du har redan laddat upp denna bild." }, 400);
+    return c.json({ error: error.message }, 400);
+  }
+
   const { data: publicUrl } = db.storage.from(bucket).getPublicUrl(filename);
   return c.json({ url: publicUrl.publicUrl });
 });

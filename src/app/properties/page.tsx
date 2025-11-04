@@ -40,7 +40,7 @@ All kommunikation med backend sker via fetch i api.ts  som i sin tur pratar med 
 export default function MyPropertiesPage() {
   const {
     items,  /* Lista med användarens properties från backend */
-    msg, /* Felmeddelanden eller status från API */
+    //msg, /* Felmeddelanden eller status från API */
     busy, /* Laddningsstatus (true under pågående API-anrop) */
     editId, /* ID för boendet som redigeras just nu */
     editData, /* Formdata för boendet som redigeras */
@@ -58,7 +58,7 @@ export default function MyPropertiesPage() {
         <h1 className="text-3xl font-bold">Mina listningar</h1>
 
          {/* Visa ev. felmeddelande från API */}
-        {msg && <p className="text-sm text-rose-600">{msg}</p>}
+
 
  {/* Sektion: Skapa nytt boende */}
         <section className="rounded-2xl border p-4 bg-gray-50">
