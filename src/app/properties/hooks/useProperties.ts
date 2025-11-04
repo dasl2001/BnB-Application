@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 
+/* Typdefinition för en Property (boende) som ägs av användaren */
 export type MyProperty = {
   id: string;
   name: string;
@@ -13,9 +14,13 @@ export type MyProperty = {
   image_url?: string | null;
 };
 
+/* Typ för Property med extra flagga för bokningsstatus */
 export type WithBooked = MyProperty & { is_booked?: boolean };
 
-// Hjälpare: säkert konvertera okänt värde till number|null
+/* 
+  Hjälpfunktion:
+  Försöker konvertera en okänd typ (t.ex. från inputfält) till ett giltigt number|null.
+*/
 function toNullableNumber(v: unknown): number | null {
   if (v === null || v === undefined) return null;
   if (typeof v === "number") return Number.isFinite(v) ? v : null;
@@ -28,18 +33,37 @@ function toNullableNumber(v: unknown): number | null {
   return null;
 }
 
-export function useProperties() {
-  const [items, setItems] = useState<WithBooked[]>([]);
-  const [msg, setMsg] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null);
-  const [editData, setEditData] = useState<Partial<MyProperty>>({});
+/* 
+  En custom React Hook som hanterar all logik för boenden (Properties).
+  Den kommunicerar direkt med backendens API och sköter CRUD-operationerna:
+    - Create  → POST /api/properties
+    - Read    → GET  /api/properties/my
+    - Update  → PATCH /api/properties/:id
+    - Delete  → DELETE /api/properties/:id
 
+  Hooken används av sidan `app/properties/page.tsx`
+*/
+export function useProperties() {
+    /* State-variabler */
+  const [items, setItems] = useState<WithBooked[]>([]); /* Alla användarens boenden */
+  const [msg, setMsg] = useState(""); /* Meddelande (fel eller status) */
+  const [busy, setBusy] = useState(false); /* Om en API-förfrågan pågår */
+  const [editId, setEditId] = useState<string | null>(null); /* ID för boendet som redigeras */
+  const [editData, setEditData] = useState<Partial<MyProperty>>({}); /* Data som redigeras i formuläret */
+
+  /* 
+    Funktion för att läsa in alla boenden från backend.
+    - Hämtar mina properties via GET /api/properties/my
+    - För varje property hämtas även dess bokningsstatus via /api/properties/:id/is-booked
+  */
   const load = useCallback(async () => {
     try {
-      setMsg("");
+      setMsg(""); /* Rensa gamla felmeddelanden */
+       /* Hämtar användarens egna boenden */
       const base = await api<{ properties: MyProperty[] }>("/api/properties/my");
-      const withFlags = await Promise.all(
+
+      /* Hämta bokningsstatus för varje property parallellt */
+      const withFlags = await Promise.all( 
         (base.properties ?? []).map(async (p) => {
           try {
             const r = await api<{ is_booked: boolean }>(`/api/properties/${p.id}/is-booked`);
@@ -49,16 +73,20 @@ export function useProperties() {
           }
         })
       );
-      setItems(withFlags);
+      setItems(withFlags); /* Uppdatera state med boenden + bokningsstatus */
     } catch (err: unknown) {
       setMsg(err instanceof Error ? err.message : "Kunde inte hämta dina boenden.");
     }
   }, []);
 
+  /* Körs när komponenten mountas – laddar initial data */
   useEffect(() => {
     void load();
   }, [load]);
 
+    /* 
+    Skickar POST /api/properties med formulärdata från CreateForm.
+  */
   async function createProperty(payload: {
     name: string;
     description: string | null;
@@ -70,6 +98,7 @@ export function useProperties() {
     setBusy(true);
     setMsg("");
     try {
+            /* Enkel validering innan API-anrop */
       if (!payload.name.trim()) {
         setMsg("Namn är obligatoriskt.");
         return;
@@ -79,11 +108,13 @@ export function useProperties() {
         return;
       }
 
+       /* POST till backend för att skapa ny property */
       await api("/api/properties", {
         method: "POST",
         json: payload,
       });
 
+       /* Läs in uppdaterad lista */
       await load();
     } catch (err: unknown) {
       setMsg(err instanceof Error ? err.message : "Något gick fel vid skapande.");
@@ -92,22 +123,26 @@ export function useProperties() {
     }
   }
 
+    /* 
+    Skickar DELETE /api/properties/:id
+    Tar bort boendet både i frontend och backend.
+  */
   async function deleteProperty(id: string) {
     if (!confirm("Är du säker på att du vill ta bort denna listning?")) return;
     try {
       const prev = items;
-      setItems((xs) => xs.filter((p) => p.id !== id)); // optimistiskt
+      setItems((xs) => xs.filter((p) => p.id !== id)); 
 
+      /* Skicka DELETE till backend */
       const res = await api<{ ok: true } | { error: string }>(`/api/properties/${id}`, {
         method: "DELETE",
       }).catch(async (e: unknown) => {
-        // api() kastar Error vid !ok, rulla tillbaka
+         /* Om det misslyckas → återställ till tidigare state */
         setItems(prev);
         throw e;
       });
 
       if (!("ok" in res)) {
-        // borde inte hända med vår api-helper, men skydd ifall
         setItems(prev);
         setMsg("Kunde inte ta bort boendet.");
       }
@@ -116,6 +151,9 @@ export function useProperties() {
     }
   }
 
+    /* 
+    Skickar PATCH /api/properties/:id med ny data från EditModal.
+  */
   async function saveEdit() {
     if (!editId) return;
 
@@ -132,6 +170,7 @@ export function useProperties() {
         return;
       }
 
+         /* Skapa nytt payload-objekt som skickas till backend */
       const payload = {
         name,
         description: (editData.description ?? "").toString().trim() || null,
@@ -141,23 +180,26 @@ export function useProperties() {
         image_url: (editData.image_url ?? "").toString().trim() || null,
       };
 
-      // optimistisk uppdatering
+      /* Optimistisk uppdatering i UI:t */
       setItems((xs) => xs.map((p) => (p.id === editId ? { ...p, ...payload } : p)));
 
+       /* PATCH till backend */
       await api(`/api/properties/${editId}`, {
         method: "PATCH",
         json: payload,
       });
 
+      /* Stäng redigeringsmodalen */
       setEditId(null);
       setEditData({});
     } catch (err: unknown) {
-      // rulla tillbaka till serverns sanning
+      /* Om något går fel → ladda om från backend för att synka */
       await load();
       setMsg(err instanceof Error ? err.message : "Kunde inte spara ändringarna.");
     }
   }
 
+   /* Returnerar alla funktioner och värden som komponenten använder */
   return {
     items,
     msg,

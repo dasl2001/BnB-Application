@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Guard from "../components/Guard";
 import { api } from "@/lib/api";
-
+/* 
+  Dessa används för att få tydlig typning på datan vi hämtar från API:t.
+*/
 type Prop = { id: string; name: string; price_per_night: number };
 type Booking = {
   id: string;
@@ -15,17 +17,27 @@ type Booking = {
   properties?: { name: string };
 };
 
+/*
+  Denna komponent hanterar:
+  Hämtning av användarens bokningar
+  Hämtning av bokningsbara boenden (andras properties)
+  Skapa nya bokningar
+  Redigera och ta bort befintliga bokningar
+  Visa totalpris (beräknat i backend)
+*/
 export default function BookingsClient() {
   const sp = useSearchParams();
   const [others, setOthers] = useState<Prop[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [msg, setMsg] = useState("");
-
-  // edit state
   const [editId, setEditId] = useState<string | null>(null);
   const [editIn, setEditIn] = useState<string>("");
   const [editOut, setEditOut] = useState<string>("");
 
+    /*
+    useEffect: laddar både andras properties och egna bokningar när sidan öppnas.
+    Hämtar data via ditt API-lager (`/api/properties/others` och `/api/bookings`).
+   */
   useEffect(() => {
     (async () => {
       try {
@@ -39,20 +51,20 @@ export default function BookingsClient() {
     })();
   }, []);
 
-  const pre = sp.get("property") || "";
-
+  const pre = sp.get("property") || ""; // Förifyller property vid bokningslänk
+/* Öppnar redigeringsmodalen med vald bokning */
   function openEdit(b: Booking) {
     setMsg("");
     setEditId(b.id);
     setEditIn(b.check_in_date);
     setEditOut(b.check_out_date);
   }
-
+/* Sparar ändringar till backend via PATCH /api/bookings/:id */
   async function saveEdit() {
     if (!editId) return;
     setMsg("");
     try {
-      // optimistisk uppdatering
+      /* Optimistisk uppdatering: ändra direkt i UI */
       setBookings((xs) =>
         xs.map((bk) =>
           bk.id === editId
@@ -60,7 +72,8 @@ export default function BookingsClient() {
             : bk
         )
       );
-
+      
+       /* Skicka ändring till backend */
       const d = await api<{ booking: Booking }>(`/api/bookings/${editId}`, {
         method: "PATCH",
         json: {
@@ -69,7 +82,7 @@ export default function BookingsClient() {
         },
       });
 
-      // synca total_price från server
+      /* Uppdatera totalpris från serverns svar */
       setBookings((xs) => xs.map((bk) => (bk.id === editId ? d.booking : bk)));
       setEditId(null);
     } catch (err: unknown) {
@@ -79,6 +92,7 @@ export default function BookingsClient() {
 
   return (
     <Guard>
+      {/* Guard säkerställer att bara inloggade användare ser detta innehåll */}
       <main className="max-w-3xl mx-auto px-4 py-8 space-y-6">
         <h1 className="text-3xl font-bold">Mina bokningar</h1>
 

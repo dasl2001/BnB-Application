@@ -2,6 +2,14 @@
 
 import type { MyProperty } from "../hooks/useProperties";
 
+/* 
+  Props som skickas från parent-komponenten (MyPropertiesPage):
+   - open: om modalen ska visas eller döljas
+   - data: den nuvarande informationen om boendet (property)
+   - onChange: callback som uppdaterar formulärfältens state
+   - onSave: callback som sparar ändringarna (PATCH /api/properties/:id)
+   - onClose: callback som stänger modalen utan att spara
+*/
 type Props = {
   open: boolean;
   data: Partial<MyProperty>;
@@ -10,12 +18,22 @@ type Props = {
   onClose: () => void;
 };
 
+/* 
+  En modal (popup-fönster) som låter användaren redigera sina boenden.
+  Den används i `MyPropertiesPage` tillsammans med hooken `useProperties()`.
+  All inmatning uppdateras i realtid via `onChange`, och när användaren klickar
+  på "Spara" kallas `onSave()` som gör PATCH-anropet till backend.
+*/
 export default function EditModal({ open, data, onChange, onSave, onClose }: Props) {
+   /* Om modalen inte ska visas → returnera null (renderas inte alls) */
   if (!open) return null;
 
   return (
+    /* Bakgrundsöverlägg som täcker hela sidan */
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
+      {/* Själva modalfönstret */}
       <div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl space-y-4">
+        {/* Rubrik och stäng-knapp */}
         <div className="flex items-center justify-between">
           <h4 className="text-lg font-semibold">Redigera boende</h4>
           <button onClick={onClose} className="rounded-full border px-3 py-1 text-sm">
@@ -23,6 +41,7 @@ export default function EditModal({ open, data, onChange, onSave, onClose }: Pro
           </button>
         </div>
 
+ {/* Formulärfält för redigering */}
         <div className="grid gap-3">
           <label className="flex flex-col gap-1">
             <span className="text-sm">Namn *</span>
@@ -33,6 +52,7 @@ export default function EditModal({ open, data, onChange, onSave, onClose }: Pro
             />
           </label>
 
+{/* Pris per natt */}
           <label className="flex flex-col gap-1">
             <span className="text-sm">Pris per natt (SEK)</span>
             <input
@@ -43,6 +63,7 @@ export default function EditModal({ open, data, onChange, onSave, onClose }: Pro
             />
           </label>
 
+{/* Plats */}
           <label className="flex flex-col gap-1">
             <span className="text-sm">Plats</span>
             <input
@@ -52,6 +73,7 @@ export default function EditModal({ open, data, onChange, onSave, onClose }: Pro
             />
           </label>
 
+ {/* Beskrivning */}
           <label className="flex flex-col gap-1">
             <span className="text-sm">Beskrivning</span>
             <textarea
@@ -61,6 +83,7 @@ export default function EditModal({ open, data, onChange, onSave, onClose }: Pro
             />
           </label>
 
+{/* Bild-URL */}
           <label className="flex flex-col gap-1">
             <span className="text-sm">Bild-URL</span>
             <input
@@ -70,6 +93,7 @@ export default function EditModal({ open, data, onChange, onSave, onClose }: Pro
             />
           </label>
 
+{/* Tillgänglighet */}
           <label className="inline-flex items-center gap-2">
             <input
               type="checkbox"
@@ -81,10 +105,14 @@ export default function EditModal({ open, data, onChange, onSave, onClose }: Pro
           </label>
         </div>
 
+{/* Knappar i nederkant */}
         <div className="flex items-center justify-end gap-2 pt-2">
+          {/* Avbryt: stänger modalen utan att spara */}
           <button onClick={onClose} className="rounded-md border px-4 py-2">
             Avbryt
           </button>
+
+           {/* Spara: kallar onSave() → PATCH till backend via hooken */}
           <button
             onClick={onSave}
             className="rounded-md border px-4 py-2 bg-blue-600 text-white hover:bg-blue-700"

@@ -2,6 +2,12 @@
 
 import { useState } from "react";
 
+/* 
+  Props:
+   - busy: visar om en nätverksförfrågan pågår (t.ex. API-anrop)
+   - onCreate: funktion som kallas när användaren skickar formuläret.
+     → Den skickas från `useProperties()` och anropar POST /api/properties
+*/
 type Props = {
   busy?: boolean;
   onCreate: (payload: {
@@ -14,15 +20,36 @@ type Props = {
   }) => Promise<void>;
 };
 
-export default function CreateForm({ busy, onCreate }: Props) {
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
-  const [msg, setMsg] = useState("");
 
+/* 
+  Formulär för att skapa ett nytt boende (Property).
+  Innehåller fält för:
+    - namn, plats, beskrivning, pris
+    - samt bilduppladdning till Supabase Storage.
+
+  När användaren klickar på “Skapa listning”:
+   ev. bild laddas upp till `/api/properties/upload-image`
+   backend returnerar en public URL till bilden
+   den skickas med i payload till `/api/properties`
+*/
+export default function CreateForm({ busy, onCreate }: Props) {
+   /* Lokala state-variabler */
+  const [file, setFile] = useState<File | null>(null);  /* vald bildfil */
+  const [preview, setPreview] = useState<string | null>(null); /* förhandsvisning */
+  const [msg, setMsg] = useState(""); /* status-/felmeddelande */
+
+    /* 
+    uploadImage(): laddar upp en bild till backendens endpoint.
+    Backend hanterar bilduppladdning till Supabase Storage-bucket "property-images".
+  */
   async function uploadImage(f: File): Promise<string | null> {
     const fd = new FormData();
     fd.append("file", f);
 
+    /* 
+      Skickar POST till vårt Hono-API → /api/properties/upload-image
+      Backend sparar bilden i Supabase Storage och returnerar en publik URL.
+    */
     const res = await fetch("/api/properties/upload-image", {
       method: "POST",
       body: fd,
@@ -30,16 +57,17 @@ export default function CreateForm({ busy, onCreate }: Props) {
 
     const data = await res.json();
     if (!res.ok) throw new Error(data?.error || "Kunde inte ladda upp bilden");
-    return data.url as string;
+    return data.url as string; /* returnerar bildens URL till frontend */
   }
 
   return (
     <form
       id="new-property-form"
       onSubmit={async (e) => {
-        e.preventDefault();
+        e.preventDefault(); /* förhindra standardformulärbeteende */
         setMsg("");
 
+         /* Läs alla fält från formuläret */
         const fd = new FormData(e.currentTarget);
         const name = String(fd.get("name") ?? "").trim();
         const description = String(fd.get("description") ?? "").trim() || null;
@@ -50,20 +78,31 @@ export default function CreateForm({ busy, onCreate }: Props) {
 
         try {
           let image_url: string | null = null;
+
+          /* 
+            Om användaren valt en bild → ladda upp den via uploadImage()
+            Få tillbaka en publik URL att spara i databasen
+          */
           if (file) image_url = await uploadImage(file);
 
+          /* 
+            Anropa onCreate() → POST /api/properties
+            Detta anrop hanteras i useProperties() som i sin tur
+            skickar datan vidare till backendens Hono-route.
+          */
           await onCreate({
             name,
             description,
             location,
             price_per_night: price,
-            availability: true,
+            availability: true, /* nya boenden är alltid tillgängliga från start */
             image_url,
           });
 
+          /* Nollställ formuläret och visa bekräftelse */
           setFile(null);
           setPreview(null);
-          setMsg("✅ Boendet skapades!");
+          setMsg("Boendet skapades!");
           (document.getElementById("new-property-form") as HTMLFormElement)?.reset();
         } catch (err: unknown) {
           const e = err as Error;
@@ -123,8 +162,8 @@ export default function CreateForm({ busy, onCreate }: Props) {
           }}
           className="rounded-md border px-3 py-2"
         />
+        {/* Visa förhandsvisning om användaren valt en bild */}
         {preview && (
-          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={preview}
             alt="Förhandsvisning"
