@@ -19,18 +19,7 @@ Projektet är utformat för att efterlikna en **bnb-hanteringsapplikation**, dä
 Registrera ny användare  
 
 **POST** `/api/auth/login`  
-Logga in och hämta access token 
-
----
-
-### Viktigt innan du loggar in
-
-Lägg till följande i **Headers** i Postman eller i din HTTP-klient:
-
-| Key | Value |
-|-----|--------|
-| **Content-Type** | `application/json` |
-| **apikey** | `<YOUR_SUPABASE_ANON_KEY>` |
+Logga in 
 
 ---
 
@@ -78,13 +67,6 @@ Uppdatera en bokning
 
 **DELETE** `/api/bookings/:id`  
 Ta bort en bokning  
-
----
-
-## Authorization
-
-Alla skyddade rutter kräver en giltig JWT-token i headern:
-Authorization: Bearer <access_token>
 
 ---
 
