@@ -90,3 +90,16 @@ npm run dev
 ## 5. Komma åt applikationen
 Tryck på länken http://localhost:3000
 
+---
+# Tabeller 
+Schemat består av tre huvudtabeller:  
+users – lagrar information om alla användare.  
+properties – innehåller alla listade fastigheter.   
+bookings – hanterar bokningar mellan användare och fastigheter.   
+
+## Relationer i korthet  
+En användare kan äga flera fastigheter.   
+En användare kan göra flera bokningar.   
+En fastighet kan ha flera bokningar, men inte överlappande datum.   
+
+
