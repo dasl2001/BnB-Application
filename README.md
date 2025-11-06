@@ -85,10 +85,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<YOUR_SUPABASE_ANON_KEY
 SUPABASE_SERVICE_ROLE_KEY=<YOUR_SUPABASE_SERVICE_ROLE_KEY>
 
 ### 4. Starta utvecklingsservern
-npm run dev
-
-## 5. Komma åt applikationen
-Tryck på länken http://localhost:3000
+npm run dev och tryck på länken http://localhost:3000
 
 ---
 # Tabeller 
