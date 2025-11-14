@@ -1,12 +1,8 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Guard from "../components/Guard";
 import { api } from "@/lib/api";
-/* 
-  Dessa används för att få tydlig typning på datan vi hämtar från API:t.
-*/
 type Prop = { id: string; name: string; price_per_night: number };
 type Booking = {
   id: string;
@@ -16,15 +12,6 @@ type Booking = {
   total_price: number;
   properties?: { name: string };
 };
-
-/*
-  Denna komponent hanterar:
-  Hämtning av användarens bokningar
-  Hämtning av bokningsbara boenden (andras properties)
-  Skapa nya bokningar
-  Redigera och ta bort befintliga bokningar
-  Visa totalpris (beräknat i backend)
-*/
 export default function BookingsClient() {
   const sp = useSearchParams();
   const [others, setOthers] = useState<Prop[]>([]);
@@ -33,11 +20,6 @@ export default function BookingsClient() {
   const [editId, setEditId] = useState<string | null>(null);
   const [editIn, setEditIn] = useState<string>("");
   const [editOut, setEditOut] = useState<string>("");
-
-    /*
-    useEffect: laddar både andras properties och egna bokningar när sidan öppnas.
-    Hämtar data via ditt API-lager (`/api/properties/others` och `/api/bookings`).
-   */
   useEffect(() => {
     (async () => {
       try {
@@ -50,21 +32,17 @@ export default function BookingsClient() {
       }
     })();
   }, []);
-
-  const pre = sp.get("property") || ""; // Förifyller property vid bokningslänk
-/* Öppnar redigeringsmodalen med vald bokning */
+  const pre = sp.get("property") || ""; 
   function openEdit(b: Booking) {
     setMsg("");
     setEditId(b.id);
     setEditIn(b.check_in_date);
     setEditOut(b.check_out_date);
   }
-/* Sparar ändringar till backend via PATCH /api/bookings/:id */
   async function saveEdit() {
     if (!editId) return;
     setMsg("");
     try {
-      /* Optimistisk uppdatering: ändra direkt i UI */
       setBookings((xs) =>
         xs.map((bk) =>
           bk.id === editId
@@ -72,8 +50,6 @@ export default function BookingsClient() {
             : bk
         )
       );
-      
-       /* Skicka ändring till backend */
       const d = await api<{ booking: Booking }>(`/api/bookings/${editId}`, {
         method: "PATCH",
         json: {
@@ -81,22 +57,16 @@ export default function BookingsClient() {
           check_out_date: editOut,
         },
       });
-
-      /* Uppdatera totalpris från serverns svar */
       setBookings((xs) => xs.map((bk) => (bk.id === editId ? d.booking : bk)));
       setEditId(null);
     } catch (err: unknown) {
       setMsg(`❌ ${err instanceof Error ? err.message : "Kunde inte spara."}`);
     }
   }
-
   return (
     <Guard>
-      {/* Guard säkerställer att bara inloggade användare ser detta innehåll */}
       <main className="max-w-3xl mx-auto px-4 py-8 space-y-6">
         <h1 className="text-3xl font-bold">Mina bokningar</h1>
-
-        {/* skapa ny bokning */}
         <form
           className="bg-white border rounded-2xl shadow-sm p-6 space-y-4"
           onSubmit={async (e: React.FormEvent<HTMLFormElement>) => {
@@ -160,8 +130,6 @@ export default function BookingsClient() {
             </p>
           )}
         </form>
-
-        {/* lista bokningar */}
         <div className="space-y-3">
           {bookings.length === 0 ? (
             <p className="text-gray-500 italic">Inga bokningar ännu.</p>
@@ -208,8 +176,6 @@ export default function BookingsClient() {
           )}
         </div>
       </main>
-
-      {/* Edit-modal */}
       {editId && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl space-y-4">
@@ -222,7 +188,6 @@ export default function BookingsClient() {
                 Stäng
               </button>
             </div>
-
             <div className="grid gap-3">
               <label className="flex flex-col gap-1">
                 <span className="text-sm">Check-in</span>
@@ -243,7 +208,6 @@ export default function BookingsClient() {
                 />
               </label>
             </div>
-
             <div className="flex items-center justify-end gap-2 pt-2">
               <button onClick={() => setEditId(null)} className="rounded-md border px-4 py-2">
                 Avbryt
