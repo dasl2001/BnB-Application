@@ -1,4 +1,4 @@
-# Booking-Application
+# BnB-Application
 
 Detta projekt är byggt med **Next.js**, **Hono API** och **Supabase** som backend.  
 Applikationen är skriven i **TypeScript** helt utan användning av `any` vilket ger robust typning och bättre utvecklarupplevelse.   
