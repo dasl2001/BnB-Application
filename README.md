@@ -1,8 +1,7 @@
 # Booking-Application
 
 Detta projekt är byggt med **Next.js**, **Hono API** och **Supabase** som backend.  
-Applikationen är skriven i **TypeScript** helt utan användning av `any` vilket ger robust typning och bättre utvecklarupplevelse.
-
+Applikationen är skriven i **TypeScript** helt utan användning av `any` vilket ger robust typning och bättre utvecklarupplevelse.   
 Projektet är utformat för att efterlikna en **bnb-hanteringsapplikation**, där användare kan:
 - **Registrera sig**
 - **Logga in**  
@@ -85,8 +84,18 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<YOUR_SUPABASE_ANON_KEY
 SUPABASE_SERVICE_ROLE_KEY=<YOUR_SUPABASE_SERVICE_ROLE_KEY>
 
 ### 4. Starta utvecklingsservern
-npm run dev
+npm run dev och tryck på länken http://localhost:3000
 
-## 5. Komma åt applikationen
-Tryck på länken http://localhost:3000
+---
+# Tabeller 
+Schemat består av tre huvudtabeller:  
+users – lagrar information om alla användare.  
+properties – innehåller alla listade fastigheter.   
+bookings – hanterar bokningar mellan användare och fastigheter.   
+
+## Relationer i korthet  
+En användare kan äga flera fastigheter.   
+En användare kan göra flera bokningar.   
+En fastighet kan ha flera bokningar, men inte överlappande datum.   
+
 
